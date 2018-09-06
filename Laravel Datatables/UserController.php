@@ -111,4 +111,36 @@ class UserController extends Controller
 
         return Datatables::of($supplier)->make(true);
     }
+    
+    public function getDataPeriode(Request $request){
+
+        $periode  = collect(explode('-',$request->periode));
+        
+        $start    = Carbon::createFromFormat('d/m/Y H:i:s', trim($periode->first())." 00:00:00")->toDateTimeString();
+        $end      = Carbon::createFromFormat('d/m/Y H:i:s', trim($periode->last())." 23:59:59")->toDateTimeString();
+
+        $table = Table::select(['id','name','phone'])->where(function ($query) use ($start, $end, $request) {
+                            if ($request->type == 'all') {
+                                $query->whereBetween('created_at', [$start, $end])->whereNull('deleted_at');
+                            }else{
+                                $query->where('type', $request->type_id)->whereBetween('created_at', [$start, $end])->whereNull('deleted_at'); 
+                            };
+                        })->get();
+
+        if (count($table) > 0 ) {
+            $table = collect($table)->map(function ($item, $key) {
+                $item['action'] =  \Form::open(['method' => 'DELETE', 'route' => ['user.destroy', Crypt::encrypt($item['id'])]]).
+                                        '<a data-widget="set" data-toggle="tooltip" title="Edit" href="'.route('user.edit', Crypt::encrypt($item['id'])).'" class="btn btn-info btn-sm" style="margin-right:2px;">'.
+                                            '<i class="fa fa-edit"></i>'.
+                                        '</a>'.
+                                        '<button class="btn btn-danger btn-sm" type="button" data-toggle="modal" data-target="#confirmDelete" data-title="Hapus" data-message="Apakah Anda Yakin Untuk Menghapus Data Ini ?">'.
+                                            '<i data-widget="delete" data-toggle="tooltip" title="Hapus" class="fa fa-trash-o"></i>'.
+                                        '</button>'.
+                                    \Form::close();
+                return $item;
+            });
+        }
+
+        return Datatables::of($accurate_coa)->make(true);
+    }
 }
