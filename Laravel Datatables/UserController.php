@@ -94,21 +94,36 @@ class UserController extends Controller
         $Suppliers = Suppliers::find($id);
         return $Suppliers;
     }
+    
+    public function getDataPeriode(Request $request){
 
-    public function getData(Request $request){
         $periode  = collect(explode('-',$request->periode));
         
-        $start    = Carbon::createFromFormat('d/m/Y', trim($periode->first()))->format('Y-m-d');
-        $end      = Carbon::createFromFormat('d/m/Y', trim($periode->last()))->format('Y-m-d');
+        $start    = Carbon::createFromFormat('d/m/Y H:i:s', trim($periode->first())." 00:00:00")->toDateTimeString();
+        $end      = Carbon::createFromFormat('d/m/Y H:i:s', trim($periode->last())." 23:59:59")->toDateTimeString();
 
-        $supplier = Suppliers::where(function ($query) use ($start, $end, $request) {
-                        if ($request->name == 'all') {
-                            $query->whereBetween('created_at', [$start, $end])->get();
-                        }else{
-                           $query->whereBetween('created_at', [$start, $end])->where('name', $request->name)->get(); 
-                        };
-                    });
+        $user = User::select(['id','name','phone'])->where(function ($query) use ($start, $end, $request) {
+            if ($request->type == 'all') {
+                $query->whereBetween('created_at', [$start, $end])->whereNull('deleted_at');
+            }else{
+                $query->where('type', $request->type_id)->whereBetween('created_at', [$start, $end])->whereNull('deleted_at'); 
+            };
+        })->get();
 
-        return Datatables::of($supplier)->make(true);
+        if (count($user) > 0 ) {
+            $user = collect($user)->map(function ($item, $key) {
+                $item['action'] =  \Form::open(['method' => 'DELETE', 'route' => ['user.destroy', Crypt::encrypt($item['id'])]]).
+                                        '<a data-widget="set" data-toggle="tooltip" title="Edit" href="'.route('user.edit', Crypt::encrypt($item['id'])).'" class="btn btn-info btn-sm" style="margin-right:2px;">'.
+                                            '<i class="fa fa-edit"></i>'.
+                                        '</a>'.
+                                        '<button class="btn btn-danger btn-sm" type="button" data-toggle="modal" data-target="#confirmDelete" data-title="Hapus" data-message="Apakah Anda Yakin Untuk Menghapus Data Ini ?">'.
+                                            '<i data-widget="delete" data-toggle="tooltip" title="Hapus" class="fa fa-trash-o"></i>'.
+                                        '</button>'.
+                                    \Form::close();
+                return $item;
+            });
+        }
+
+        return Datatables::of($user)->make(true);
     }
 }
