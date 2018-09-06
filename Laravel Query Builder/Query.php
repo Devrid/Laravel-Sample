@@ -124,5 +124,23 @@ class HomeController extends Controller
         isNotEmpty();
         all();
         slice(4, 2);
+        
+        $ProporsionalByMont = $DB::select(DB::raw("
+            SELECT
+                bd.id,
+                bd.deleted_at,
+                IF(MONTH(bd.tanggal_mulai) = MONTH('".$month."'),
+                    DATEDIFF(bd.tanggal_mulai, bd.tanggal_selesai ),
+                    DATEDIFF(DATE_FORMAT('".$month."' ,'%Y-%m-01'), bd.tanggal_selesai)
+                ) + 1 AS 'total_hari_penarikan'
+            FROM
+                booking_detail bd
+            JOIN
+                booking b ON bd.booking_id = b.id AND b.deleted_at IS NULL AND b.status_booking_id != '".BOOKING_CANCELED."'
+            WHERE
+                DATE(bd.tanggal_selesai) BETWEEN DATE_FORMAT('".$month."' ,'%Y-%m-01') AND LAST_DAY('".$month."')
+                OR
+                DATE(bd.tanggal_mulai) BETWEEN DATE_FORMAT('".$month."' ,'%Y-%m-01') AND LAST_DAY('".$month."')
+        "));
     }
 }
